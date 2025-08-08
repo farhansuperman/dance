@@ -4,16 +4,659 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🕺 Dance to Debug 💃</title>
-    <link rel="stylesheet" href="styles.css">
-    <!-- MediaPipe Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-    <!-- Monaco Editor -->
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.34.0/min/vs/loader.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .dance-section {
+            background: rgba(255,255,255,0.15);
+            padding: 25px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .video-container {
+            position: relative;
+            margin: 20px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 4px solid #00ff88;
+            background: #000;
+        }
+
+        #webcam {
+            width: 100%;
+            height: 240px;
+            object-fit: cover;
+        }
+
+        .dance-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.7);
+            font-size: 2em;
+            pointer-events: none;
+        }
+
+        .dance-status {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 25px;
+            font-size: 1.3em;
+            font-weight: bold;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .dance-status.dancing {
+            border-color: #00ff88;
+            background: rgba(0,255,136,0.2);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0,255,136,0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(0,255,136,0); }
+            100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); }
+        }
+
+        .dance-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .dance-btn {
+            padding: 10px 20px;
+            background: #ff6b6b;
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dance-btn:hover {
+            background: #ff5252;
+            transform: scale(1.05);
+        }
+
+        .dance-btn:active {
+            transform: scale(0.95);
+        }
+
+        .code-section {
+            background: rgba(0,0,0,0.4);
+            padding: 25px;
+            border-radius: 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .code-tabs {
+            display: flex;
+            gap: 10px;
+        }
+
+        .code-tab {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .code-tab.active {
+            background: #00ff88;
+            color: #000;
+        }
+
+        #code-editor {
+            width: 100%;
+            height: 300px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        #code-editor:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+
+        #code-editor.locked {
+            opacity: 0.5;
+            filter: blur(2px);
+            pointer-events: none;
+        }
+
+        .code-controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            align-items: center;
+        }
+
+        #run-code {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,255,136,0.3);
+        }
+
+        #run-code:enabled:hover {
+            background: linear-gradient(45deg, #00cc6a, #00aa55);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,255,136,0.4);
+        }
+
+        #run-code:disabled {
+            background: #666;
+            color: #999;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.6;
+        }
+
+        .run-status {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 10px;
+            min-height: 80px;
+            border: 2px solid #333;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .output-success {
+            border-color: #00ff88 !important;
+            background: rgba(0,255,136,0.1) !important;
+        }
+
+        .output-error {
+            border-color: #ff6b6b !important;
+            background: rgba(255,107,107,0.1) !important;
+        }
+
+        .dance-progress {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .dance-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00cc6a);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .dance-buttons {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
 </head>
 <body>
-    <!-- Content will be added in next steps -->
+    <div class="container">
+        <h1>🕺 Dance to Debug 💃</h1>
+        
+        <div class="main-content">
+            <div class="dance-section">
+                <h2>🎥 Dance Zone</h2>
+                <div class="video-container">
+                    <video id="webcam" autoplay muted playsinline></video>
+                    <div class="dance-overlay" id="dance-overlay">
+                        📹 Click "Start Camera" to begin!
+                    </div>
+                </div>
+                
+                <div class="dance-status" id="dance-status">
+                    Ready to dance? Enable your camera first! 📱
+                </div>
+                
+                <div class="dance-progress">
+                    <div class="dance-progress-bar" id="dance-progress"></div>
+                </div>
+                
+                <div class="dance-buttons">
+                    <button class="dance-btn" id="start-camera" onclick="startCamera()">📹 Start Camera</button>
+                    <button class="dance-btn" id="simulate-dance" onclick="simulateDance()">🤖 Simulate Dance</button>
+                    <button class="dance-btn" onclick="resetDance()">🔄 Reset</button>
+                </div>
+            </div>
+            
+            <div class="code-section">
+                <div class="code-header">
+                    <h2>💻 Code Editor</h2>
+                    <div class="code-tabs">
+                        <button class="code-tab active" onclick="switchLanguage('javascript')">JavaScript</button>
+                        <button class="code-tab" onclick="switchLanguage('python')">Python</button>
+                        <button class="code-tab" onclick="switchLanguage('java')">Java</button>
+                    </div>
+                </div>
+                
+                <textarea id="code-editor" class="locked" placeholder="Dance first to unlock the editor! 💃🕺">// Welcome to Dance to Debug! 🕺💃
+// You must dance before you can code!
+
+function hello() {
+    console.log("Hello, Dancing World! 🌍");
+    console.log("You danced, so you earned this code execution! 🎉");
+    
+    // Try editing this code after you dance!
+    for (let i = 1; i <= 5; i++) {
+        console.log(`Dance step ${i}: 💃`);
+    }
+    
+    return "Keep dancing and coding! 🚀";
+}
+
+hello();</textarea>
+                
+                <div class="code-controls">
+                    <button id="run-code" disabled onclick="runCode()">
+                        🔒 Run Code (Dance First!)
+                    </button>
+                    <span class="run-status" id="run-status">Status: Locked - Dance required! 💃</span>
+                </div>
+                
+                <div id="output">
+                    <div style="opacity: 0.7; font-style: italic;">
+                        🎭 Output will appear here after you dance and run your code...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isDanceVerified = false;
+        let isSimulatingDance = false;
+        let danceProgress = 0;
+        let currentLanguage = 'javascript';
+        let cameraStream = null;
+        
+        const codeTemplates = {
+            javascript: `// Welcome to Dance to Debug! 🕺💃
+// You must dance before you can code!
+
+function hello() {
+    console.log("Hello, Dancing World! 🌍");
+    console.log("You danced, so you earned this code execution! 🎉");
+    
+    // Try editing this code after you dance!
+    for (let i = 1; i <= 5; i++) {
+        console.log(\`Dance step \${i}: 💃\`);
+    }
+    
+    return "Keep dancing and coding! 🚀";
+}
+
+hello();`,
+            
+            python: `# Welcome to Dance to Debug! 🕺💃
+# You must dance before you can code!
+
+def hello():
+    print("Hello, Dancing World! 🌍")
+    print("You danced, so you earned this code execution! 🎉")
+    
+    # Try editing this code after you dance!
+    for i in range(1, 6):
+        print(f"Dance step {i}: 💃")
+    
+    return "Keep dancing and coding! 🚀"
+
+result = hello()
+print(result)`,
+            
+            java: `// Welcome to Dance to Debug! 🕺💃
+// You must dance before you can code!
+
+public class DanceToDebug {
+    public static void main(String[] args) {
+        System.out.println("Hello, Dancing World! 🌍");
+        System.out.println("You danced, so you earned this code execution! 🎉");
+        
+        // Try editing this code after you dance!
+        for (int i = 1; i <= 5; i++) {
+            System.out.println("Dance step " + i + ": 💃");
+        }
+        
+        System.out.println("Keep dancing and coding! 🚀");
+    }
+}`
+        };
+
+        function updateDanceStatus(message, isActive = false) {
+            const status = document.getElementById('dance-status');
+            status.textContent = message;
+            status.classList.toggle('dancing', isActive);
+        }
+
+        function updateDanceProgress(progress) {
+            document.getElementById('dance-progress').style.width = progress + '%';
+            danceProgress = progress;
+        }
+
+        async function startCamera() {
+            try {
+                const video = document.getElementById('webcam');
+                const overlay = document.getElementById('dance-overlay');
+                const startBtn = document.getElementById('start-camera');
+                
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 } 
+                });
+                
+                video.srcObject = cameraStream;
+                overlay.style.display = 'none';
+                startBtn.textContent = '📹 Camera Active';
+                startBtn.style.background = '#00ff88';
+                startBtn.style.color = '#000';
+                
+                updateDanceStatus("Camera ready! Start dancing to unlock coding! 💃🕺");
+                
+                // Simulate basic motion detection
+                startMotionDetection();
+                
+            } catch (error) {
+                console.error('Camera access failed:', error);
+                updateDanceStatus("❌ Camera access denied. Use 'Simulate Dance' instead!");
+            }
+        }
+
+        function startMotionDetection() {
+            // Simple motion detection simulation
+            let motionLevel = 0;
+            const video = document.getElementById('webcam');
+            
+            if (!video.srcObject) return;
+            
+            // In a real implementation, you'd use MediaPipe or similar for pose detection
+            // This is a simplified version that detects any movement
+            updateDanceStatus("Move around and dance! I'm watching... 👀", true);
+        }
+
+        function simulateDance() {
+            if (isSimulatingDance) return;
+            
+            isSimulatingDance = true;
+            updateDanceStatus("🤖 Simulating epic dance moves... 💃🕺", true);
+            
+            const danceMessages = [
+                "🕺 Detecting sick moves...",
+                "💃 Nice footwork!",
+                "🔥 Dance level: AMAZING!",
+                "⭐ Professional dancer detected!",
+                "🎉 Dance verification complete!"
+            ];
+            
+            let step = 0;
+            const danceInterval = setInterval(() => {
+                if (step < danceMessages.length) {
+                    updateDanceStatus(danceMessages[step], true);
+                    updateDanceProgress((step + 1) * 20);
+                    step++;
+                } else {
+                    clearInterval(danceInterval);
+                    completeDance();
+                }
+            }, 800);
+        }
+
+        function completeDance() {
+            isDanceVerified = true;
+            isSimulatingDance = false;
+            updateDanceProgress(100);
+            updateDanceStatus("✅ Dance verified! Code editor unlocked! 🎉");
+            
+            // Unlock code editor
+            const editor = document.getElementById('code-editor');
+            const runBtn = document.getElementById('run-code');
+            const runStatus = document.getElementById('run-status');
+            
+            editor.classList.remove('locked');
+            editor.removeAttribute('readonly');
+            runBtn.disabled = false;
+            runBtn.innerHTML = '🚀 Run Code';
+            runStatus.textContent = 'Status: Ready to code! 💻';
+            
+            // Add celebration effect
+            setTimeout(() => {
+                updateDanceStatus("🎊 Happy coding! Remember to dance again later! 💃🕺");
+            }, 3000);
+        }
+
+        function resetDance() {
+            isDanceVerified = false;
+            isSimulatingDance = false;
+            updateDanceProgress(0);
+            updateDanceStatus("Ready to dance? Enable your camera first! 📱");
+            
+            // Lock code editor
+            const editor = document.getElementById('code-editor');
+            const runBtn = document.getElementById('run-code');
+            const runStatus = document.getElementById('run-status');
+            const output = document.getElementById('output');
+            
+            editor.classList.add('locked');
+            editor.setAttribute('readonly', true);
+            runBtn.disabled = true;
+            runBtn.innerHTML = '🔒 Run Code (Dance First!)';
+            runStatus.textContent = 'Status: Locked - Dance required! 💃';
+            
+            output.className = '';
+            output.innerHTML = '<div style="opacity: 0.7; font-style: italic;">🎭 Output will appear here after you dance and run your code...</div>';
+        }
+
+        function switchLanguage(language) {
+            currentLanguage = language;
+            const editor = document.getElementById('code-editor');
+            
+            // Update active tab
+            document.querySelectorAll('.code-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update code template
+            if (!isDanceVerified) {
+                editor.placeholder = codeTemplates[language];
+            } else {
+                editor.value = codeTemplates[language];
+            }
+        }
+
+        function runCode() {
+            if (!isDanceVerified) {
+                alert('🚫 You must dance first! No dancing, no coding! 💃🕺');
+                return;
+            }
+            
+            const code = document.getElementById('code-editor').value;
+            const output = document.getElementById('output');
+            const runBtn = document.getElementById('run-code');
+            
+            // Disable button temporarily
+            runBtn.disabled = true;
+            runBtn.innerHTML = '⏳ Running...';
+            
+            // Simulate code execution
+            setTimeout(() => {
+                try {
+                    let result = '';
+                    
+                    if (currentLanguage === 'javascript') {
+                        // Capture console.log output
+                        const originalLog = console.log;
+                        const logs = [];
+                        console.log = (...args) => {
+                            logs.push(args.join(' '));
+                            originalLog.apply(console, args);
+                        };
+                        
+                        // Execute JavaScript
+                        const execResult = eval(code);
+                        console.log = originalLog;
+                        
+                        result = logs.length > 0 ? logs.join('\n') : 'Code executed successfully!';
+                        if (execResult !== undefined) {
+                            result += `\n\nReturn value: ${execResult}`;
+                        }
+                        
+                        output.innerHTML = `<pre style="color: #00ff88;">${result}</pre>`;
+                        output.className = 'output-success';
+                        
+                    } else {
+                        // For Python/Java, show simulated output
+                        const simulatedOutputs = {
+                            python: `Hello, Dancing World! 🌍
+You danced, so you earned this code execution! 🎉
+Dance step 1: 💃
+Dance step 2: 💃
+Dance step 3: 💃
+Dance step 4: 💃
+Dance step 5: 💃
+Keep dancing and coding! 🚀`,
+                            java: `Hello, Dancing World! 🌍
+You danced, so you earned this code execution! 🎉
+Dance step 1: 💃
+Dance step 2: 💃
+Dance step 3: 💃
+Dance step 4: 💃
+Dance step 5: 💃
+Keep dancing and coding! 🚀`
+                        };
+                        
+                        result = simulatedOutputs[currentLanguage];
+                        output.innerHTML = `<pre style="color: #00ff88;">${result}</pre>`;
+                        output.className = 'output-success';
+                    }
+                    
+                } catch (error) {
+                    output.innerHTML = `<pre style="color: #ff6b6b;">❌ Error: ${error.message}\n\nDon't worry, even dancers make mistakes! 💃🕺</pre>`;
+                    output.className = 'output-error';
+                }
+                
+                // Re-enable button
+                runBtn.disabled = false;
+                runBtn.innerHTML = '🚀 Run Code';
+                
+                // Reset dance requirement after some time
+                setTimeout(() => {
+                    if (isDanceVerified) {
+                        updateDanceStatus("Time to dance again! 💃🕺 (Dance requirement reset)");
+                        resetDance();
+                    }
+                }, 10000); // Reset after 10 seconds
+                
+            }, 1500);
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            updateDanceStatus("Welcome! Enable camera or simulate dance to start! 🎉");
+        };
+
+        // Stop camera when page is closed
+        window.onbeforeunload = function() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+        };
+    </script>
 </body>
 </html>
